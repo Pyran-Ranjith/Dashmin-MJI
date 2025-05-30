@@ -1,0 +1,46 @@
+# -------------------------------
+# XAMPP & PHP Specific
+# -------------------------------
+# XAMPP temp files
+/xampp/tmp/*
+/xampp/sess_*
+/xampp/phpmyadmin/session.save_path/*
+
+# PHP session/cache files
+*.sess
+*.session
+/sessions/*
+/tmp/*
+
+# Environment/config files (sensitive!)
+.env
+config.php
+/database_credentials.php
+
+# Composer dependencies (exclude vendor/)
+/vendor/
+/composer.lock
+
+# Log files
+*.log
+/logs/
+/xampp/apache/logs/*
+
+# -------------------------------
+# OS & Editor Files
+# -------------------------------
+# OS junk
+.DS_Store          # macOS
+Thumbs.db          # Windows
+*.swp              # Vim
+
+# IDE/Editor files
+.idea/             # PHPStorm/IntelliJ
+# .vscode/           # VS Code
+
+# -------------------------------
+# Uploads & Caches
+# -------------------------------
+/uploads/          # User-uploaded files
+/cache/
+*.cache

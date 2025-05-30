@@ -1,0 +1,75 @@
+  =>  Template Name    : DASHMIN - Bootstrap Admin Template Free
+
+  =>  Template Link    : https://htmlcodex.com/bootstrap-admin-template-free
+
+  =>  Template License : https://htmlcodex.com/license (or read the LICENSE.txt file)
+
+  =>  Template Author  : HTML Codex
+
+  =>  Author Website   : https://htmlcodex.com
+
+  =>  About HTML Codex : HTML Codex is one of the top creators and publishers of Free HTML templates, HTML landing pages, HTML email templates and HTML snippets in the world. Read more at ( https://htmlcodex.com/about-us )
+
+  =================================
+SELECT su.*, st.part_number as part_number_ FROM subscription su
+LEFT JOIN stocks st ON stock_id = st.id
+WHERE su.user_id = 12 
+AND st.part_number = 'ols_sin_lan'
+
+Namaratne Motor Company
+25 years of Experience
+Expert Advice & Consultation
+
+---------- Failing items after transfering files ---------------
+Failed to load resource: the server responded with a status of 404 (Not Found)
+style.css:1 
+  FOLDER css COPYED            
+            
+owl.carousel.min.css:1 Failed to load resource: the server responded with a status of 404 (Not Found)
+  >lib COPYED
+GET http://localhost/JYI_DEV_6_DashMin/Dashmin_MJI_Remote/img/user-default.png 404 (Not Found)
+index1.php:922 
+  >img COPYED
+GET http://localhost/JYI_DEV_6_DashMin/Dashmin_MJI_Remote/img/course-1.jpg 404 (Not Found)
+index1.php:922 
+            
+            
+           GET http://localhost/JYI_DEV_6_DashMin/Dashmin_MJI_Remote/img/course-2.jpg 404 (Not Found)
+index1.php:925 
+            
+            
+           GET http://localhost/JYI_DEV_6_DashMin/Dashmin_MJI_Remote/img/course-3.jpg 404 (Not Found)
+           ------21/02/2025-------------------------------------
+           http://localhost/JYI_DEV_6_DashMin/Dashmin-MJI/maintain_src_file_list.php
+           ?calling_pgm_name=batch_copy_files_src_to_destination_folder
+           |description=List%20of%20files%20copied%20from%20source%20folder%20to%20destination%20folder
+           |source_folder=C:\xampp\htdocs\JYI_DEV_6_DashMin\Dashmin-MJI\/
+           |destination_folder=C:\xampp\htdocs\JYI_DEV_6_DashMin\Dashmin_MJI_Remote\/
+           |tablesrc=src_file_list_folder
+           |status=1%20files%20copied%20successfully.
+
+           ------27/02/2025-------------------------------------
+           contact_us.png
+           Products_&_Services_NMC_files.png
+           kyb1.jpg
+           EXCEL-G.jpg
+           gas-a-just.jpg
+           ultra-pic1.jpg
+           AGV.jpg
+           flyer1.jpg
+           flyer1.jpg
+           flyer2.jpg
+           flyer3.jpg
+           flyer4.jpg
+           differentiation.png
+           about-us1.jpg
+           about-us2.jpg
+           about-us3.jpg
+           about-us4.jpg
+
+           AGX.jpg
+           footer1.php
+
+outline.php
+index.html_
+=========================================================================================
