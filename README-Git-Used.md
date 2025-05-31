@@ -7,6 +7,6 @@
 
 ### Basic Configuration:
 - Set your username:
-    - git config --global user.name "Your Name"
+    - git config --global user.name "PiranRanjith"
 - Set your email address:
-    - git config --global user.email "your.email@example.com"
+    - git config --global user.email "piranranjith@gmail.com"
