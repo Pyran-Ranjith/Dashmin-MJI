@@ -18,6 +18,7 @@ https://dash.infinityfree.com/login
 
 ### WinSCP
 #### Nmc
+- Transfer type; Ftp
 - Hostname: ftpupload.net
 - Port: 21
 - Username: if0_37657216
