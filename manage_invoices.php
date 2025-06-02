@@ -1,4 +1,10 @@
 <?php
+session_start();
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
 ob_start();
 include('db.php');
 include('header.php');
@@ -18,17 +24,20 @@ if (isset($_POST['save_invoice'])) {
 
     // Insert invoice items
     foreach ($sales_ids as $sale_id) {
-        $sale_result = $conn->query("SELECT * FROM sales WHERE id = '$sale_id' AND flag = 'active'");
+        $sale_result = $conn->query("
+        SELECT * FROM sales 
+        WHERE id = '$sale_id' AND flag = 'active'
+        ");
         $sale = $sale_result->fetch(PDO::FETCH_ASSOC);
 
         $quantity = $sale['quantity_sold'];
-        // $unit_price = $sale['total_price'] / $sale['quantity_sold'];
         $unit_price = $sale['selling_price'];
         $item_total_price = $sale['selling_price'] * $sale['quantity_sold'];
         $stock_id = $sale['stock_id'];
+        $unit_price1 = $sale['total_price'];
 
         $sql = "INSERT INTO invoice_items (invoice_id, sale_id, quantity, unit_price, total_price, stock_id)
-                VALUES ('$invoice_id', '$sale_id', '$quantity', '$unit_price', '$item_total_price', '$stock_id')";
+                VALUES ('$invoice_id', '$sale_id', '$quantity', '$unit_price1', '$item_total_price', '$stock_id')";
         $conn->query($sql);
 
         $total_price += $item_total_price;
@@ -47,40 +56,33 @@ JOIN customers ON invoices.customer_id = customers.id
 WHERE invoices.flag = 'active' 
 ");
 
-$customers_result = $conn->query("SELECT * FROM customers WHERE flag = 'active'");
+$customers_result = $conn->query("SELECT * FROM customers 
+WHERE flag = 'active'
+ORDER BY customers.first_name
+");
 
-// Fetch sales for the customer to create an invoice
-// $sales_result = $conn->query("SELECT * FROM sales WHERE flag = 'active'");
-// Fetch sales records
-$sales_result = $conn->query("SELECT sa.id, cu.first_name as first_name, cu.last_name, 
-    st.part_number, st.description, 
-    sa.quantity_sold, sa.total_price, sa.sale_date, sa.selling_price, sa.flag
-    FROM sales sa  
-    JOIN customers cu ON sa.customer_id = cu.id 
-    JOIN stocks st ON sa.stock_id = st.id
-    WHERE sa.flag = 'active'
-    ORDER BY sa.sale_date DESC
-    ");
-// $sales_result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+// Get selected customer ID from POST or default to empty
+$selected_customer = $_POST['customer_id'] ?? '';
 ?>
 
 <div class="card">
     <div class="card-header">
         <h2>Manage Invoices</h2>
-        <!-- Manage Invoices -->
-
     </div>
-    <!-- <div> -->
     <div class="card-body">
         <!-- Form to create an invoice -->
-        <form method="POST" action="manage_invoices.php">
+        <form method="POST" action="manage_invoices.php" id="invoiceForm">
             <div class="form-group">
                 <label><strong>Customer</strong></label>
-                <select class="form-control" name="customer_id" required>
+                <select class="form-control" name="customer_id" id="customerSelect" required onchange="filterSales()">
                     <option value="" disabled selected>Select a Customer</option>
-                    <?php while ($customer = $customers_result->fetch(PDO::FETCH_ASSOC)) { ?>
-                        <option value="<?php echo $customer['id']; ?>"><?php echo $customer['first_name'] . ' ' . $customer['last_name']; ?></option>
+                    <?php 
+                    $customers_result->execute();
+                    while ($customer = $customers_result->fetch(PDO::FETCH_ASSOC)) { 
+                    ?>
+                        <option value="<?= $customer['id'] ?>" <?= $selected_customer == $customer['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($customer['first_name'] . ' ' . $customer['last_name']) ?>
+                        </option>
                     <?php } ?>
                 </select>
             </div>
@@ -90,32 +92,36 @@ $sales_result = $conn->query("SELECT sa.id, cu.first_name as first_name, cu.last
             </div>
             <div class="form-group">
                 <label><strong>Select Sales</strong></label>
-
-                <select class="form-control" name="sales_ids[]" multiple required>
+                <select class="form-control" name="sales_ids[]" id="salesSelect" multiple required>
                     <option value="" disabled selected>Select a Sale</option>
-                    <?php while ($sale = $sales_result->fetch(PDO::FETCH_ASSOC)) { ?>
-
-                        <noscript>
-                            <option value="
-                        <?php echo $sale['id']; ?>">
-                                Sale ID: <?php echo $sale['id']; ?>
-                                - Total: <?php echo $sale['total_price']; ?>
-                            </option>
-                        </noscript>
-
-                        <option value="
-                        <?php echo $sale['id']; ?>">
-                            Name: <?php echo $sale['first_name']; ?>
-                            <!-- <?php echo $sale['last_name']; ?> -->
-                            - Part : <?php echo $sale['part_number']; ?>
-                            <!-- Description: <?php echo $sale['description']; ?> -->
-                            - Quantity: <?php echo $sale['quantity_sold']; ?>
-                            <!-- - Total Price: <?php echo $sale['total_price']; ?> -->
-                            - Selling Price: <?php echo $sale['selling_price']; ?>
-                            - Date: <?php echo $sale['sale_date']; ?>
-                            <!-- - Total: <?php echo $sale['total_price']; ?> -->
+                    <?php 
+                    $sales_query = "SELECT sa.id, cu.first_name, cu.last_name, 
+                                  st.part_number, st.description, 
+                                  sa.quantity_sold, sa.total_price, sa.sale_date, sa.selling_price
+                                  FROM sales sa  
+                                  JOIN customers cu ON sa.customer_id = cu.id 
+                                  JOIN stocks st ON sa.stock_id = st.id
+                                  WHERE sa.flag = 'active'";
+                    
+                    if (!empty($selected_customer)) {
+                        $sales_query .= " AND sa.customer_id = :customer_id";
+                        $stmt = $conn->prepare($sales_query);
+                        $stmt->bindParam(':customer_id', $selected_customer);
+                        $stmt->execute();
+                    } else {
+                        $stmt = $conn->query($sales_query);
+                    }
+                    
+                    while ($sale = $stmt->fetch(PDO::FETCH_ASSOC)) { 
+                    ?>
+                        <option value="<?= $sale['id'] ?>">
+                            Name: <?= htmlspecialchars($sale['first_name']) ?>
+                            - Part: <?= htmlspecialchars($sale['part_number']) ?>
+                            - Quantity: <?= htmlspecialchars($sale['quantity_sold']) ?>
+                            - Unit Cost: <?= htmlspecialchars($sale['total_price']) ?>
+                            - Selling Price: <?= htmlspecialchars($sale['selling_price']) ?>
+                            - Date: <?= htmlspecialchars($sale['sale_date']) ?>
                         </option>
-
                     <?php } ?>
                 </select>
             </div>
@@ -125,7 +131,7 @@ $sales_result = $conn->query("SELECT sa.id, cu.first_name as first_name, cu.last
         <hr>
 
         <!-- Invoices List -->
-        <table class=" table-striped table table-bordered">
+        <table class="table table-striped table-bordered">
             <thead class="table-dark">
                 <tr>
                     <th>Invoice Id</th>
@@ -137,15 +143,18 @@ $sales_result = $conn->query("SELECT sa.id, cu.first_name as first_name, cu.last
                 </tr>
             </thead>
             <tbody>
-                <?php while ($invoice = $invoices_result->fetch(PDO::FETCH_ASSOC)) { ?>
+                <?php 
+                $invoices_result->execute();
+                while ($invoice = $invoices_result->fetch(PDO::FETCH_ASSOC)) { 
+                ?>
                     <tr>
-                        <td><?php echo $invoice['id']; ?></td>
-                        <td><?php echo $invoice['invoice_number']; ?></td>
-                        <td><?php echo $invoice['first_name'] . ' ' . $invoice['last_name']; ?></td>
-                        <td><?php echo $invoice['issue_date']; ?></td>
-                        <td><?php echo $invoice['total_price']; ?></td>
+                        <td><?= htmlspecialchars($invoice['id']) ?></td>
+                        <td><?= htmlspecialchars($invoice['invoice_number']) ?></td>
+                        <td><?= htmlspecialchars($invoice['first_name'] . ' ' . $invoice['last_name']) ?></td>
+                        <td><?= htmlspecialchars($invoice['issue_date']) ?></td>
+                        <td><?= number_format($invoice['total_price'], 2) ?></td>
                         <td>
-                            <a href="view_invoice.php?invoice_id=<?php echo $invoice['id']; ?>" class="btn btn-info btn-sm">View</a>
+                            <a href="view_invoice.php?invoice_id=<?= $invoice['id'] ?>" class="btn btn-info btn-sm">View</a>
                         </td>
                     </tr>
                 <?php } ?>
@@ -153,8 +162,13 @@ $sales_result = $conn->query("SELECT sa.id, cu.first_name as first_name, cu.last
         </table>
     </div>
 </div>
-<!-- </div>
-<div> -->
+
+<script>
+function filterSales() {
+    // Submit the form when customer selection changes
+    document.getElementById('invoiceForm').submit();
+}
+</script>
 
 <?php
 include('footer.php');

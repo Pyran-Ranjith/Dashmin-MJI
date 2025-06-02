@@ -1,4 +1,11 @@
 <?php
+/*                                                                                                                  */
+/* manage_sales.php                                                                                                 */
+/* DB                    .pgm                                                                                       */
+/* -------------------   ---------------------------                                                                */
+/* total_price           Untt Price                                                                                 */
+/*                                                                                                                  */
+
 session_start();
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -14,37 +21,26 @@ $pdo = $conn;
 // Initialize $sales as an empty array
 $sales = [];
 
-// Fetch sales records (only active records) with FIFO cost
+// Fetch sales records (only active records)
 try {
-    $stmt = $pdo->query("
-        SELECT 
-            sales.id, 
-            customers.first_name, 
-            customers.last_name, 
-            stocks.part_number, 
-            stocks.description, 
-            stocks.rack_id,
-            racks.location_code, 
-            sales.quantity_sold, 
-            (SELECT cost FROM fifo_queue1 
-             WHERE part_id = sales.stock_id AND is_processed = 0 
-             ORDER BY id ASC LIMIT 1) AS total_price,
-            sales.selling_price, 
-            sales.sale_date
+    $stmt = $pdo->query("SELECT sales.id, customers.first_name, customers.last_name, 
+        stocks.part_number, stocks.description, stocks.rack_id,
+        racks.location_code, 
+        sales.quantity_sold, sales.total_price, sales.selling_price, sales.sale_date
         FROM sales  
-        LEFT JOIN customers ON sales.customer_id = customers.id 
-        LEFT JOIN stocks ON sales.stock_id = stocks.id
-        LEFT JOIN racks ON stocks.rack_id = racks.id
-        WHERE sales.flag = 'active'
-    ");
+        JOIN customers ON sales.customer_id = customers.id 
+        JOIN stocks ON sales.stock_id = stocks.id
+        JOIN racks ON stocks.rack_id = racks.id
+        WHERE sales.flag = 'active'"); // Only fetch active sales
     $sales = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
+    // Handle the error (log it, show a message, etc.)
     die("An error occurred while fetching sales: " . $e->getMessage());
 }
 
 // Fetch customers and stocks for dropdowns
 $customers = $pdo->query("SELECT id, first_name, last_name FROM customers")->fetchAll(PDO::FETCH_ASSOC);
-$stocks = $pdo->query("SELECT id, part_number, stock_quantity FROM stocks WHERE flag = 'active'")->fetchAll(PDO::FETCH_ASSOC);
+$stocks = $pdo->query("SELECT id, part_number, stock_quantity FROM stocks WHERE flag = 'active'")->fetchAll(PDO::FETCH_ASSOC); // Only fetch active stocks
 
 // Handle create/update
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -52,27 +48,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $customer_id = intval($_POST['customer_id']);
     $stock_id = intval($_POST['stock_id']);
     $quantity_sold = intval($_POST['quantity_sold']);
+    $total_price = floatval($_POST['total_price']);
     $selling_price = floatval($_POST['selling_price']);
     $sale_date = $_POST['sale_date'];
 
     try {
         $pdo->beginTransaction();
 
-        // Get FIFO cost for the stock item
-        $stmt = $pdo->prepare("SELECT cost FROM fifo_queue1 
-                              WHERE part_id = ? AND is_processed = 0 
-                              ORDER BY id ASC LIMIT 1");
-        $stmt->execute([$stock_id]);
-        $fifo_cost = $stmt->fetchColumn();
-        
-        if ($fifo_cost === false) {
-            throw new Exception("No available stock in FIFO queue for this part");
-        }
-        
-        $total_price = $fifo_cost * $quantity_sold;
-
         if ($id) {
-            // Update existing sale
+            // Fetch the old quantity sold and stock ID
             $stmt = $pdo->prepare("SELECT quantity_sold, stock_id FROM sales WHERE id=?");
             $stmt->execute([$id]);
             $old_sale = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -83,26 +67,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare("UPDATE sales SET customer_id=?, stock_id=?, quantity_sold=?, total_price=?, selling_price=?, sale_date=? WHERE id=?");
             $stmt->execute([$customer_id, $stock_id, $quantity_sold, $total_price, $selling_price, $sale_date, $id]);
 
-            // Adjust stock quantities
+            // Adjust the stock quantity for the old stock item
             if ($old_stock_id != $stock_id) {
-                // Restore old stock
+                // Restore the old stock quantity
                 $stmt = $pdo->prepare("UPDATE stocks SET stock_quantity = stock_quantity + ? WHERE id=?");
                 $stmt->execute([$old_quantity_sold, $old_stock_id]);
-                
-                // Deduct new stock
+
+                // Deduct the new stock quantity
                 $stmt = $pdo->prepare("UPDATE stocks SET stock_quantity = stock_quantity - ? WHERE id=?");
                 $stmt->execute([$quantity_sold, $stock_id]);
             } else {
-                // Adjust same stock
+                // Adjust the stock quantity for the same stock item
                 $stmt = $pdo->prepare("UPDATE stocks SET stock_quantity = stock_quantity + ? - ? WHERE id=?");
                 $stmt->execute([$old_quantity_sold, $quantity_sold, $stock_id]);
             }
         } else {
-            // Insert new sale
+            // Insert the new sale
             $stmt = $pdo->prepare("INSERT INTO sales (customer_id, stock_id, quantity_sold, total_price, selling_price, sale_date, flag) VALUES (?, ?, ?, ?, ?, ?, 'active')");
             $stmt->execute([$customer_id, $stock_id, $quantity_sold, $total_price, $selling_price, $sale_date]);
 
-            // FIFO processing
+            // ===== FIFO IMPLEMENTATION =====
             $remaining = $quantity_sold;
             $stmt = $pdo->prepare("SELECT * FROM fifo_queue1 
                                  WHERE part_id = ? 
@@ -132,8 +116,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($remaining > 0) {
                 throw new Exception("Not enough stock available in FIFO queue");
             }
+            // ===== END FIFO =====
 
-            // Deduct stock quantity
+
+            // Deduct the stock quantity
             $stmt = $pdo->prepare("UPDATE stocks SET stock_quantity = stock_quantity - ? WHERE id=?");
             $stmt->execute([$quantity_sold, $stock_id]);
         }
@@ -141,6 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->commit();
     } catch (Exception $e) {
         $pdo->rollBack();
+        // Handle the error (log it, show a message, etc.)
         die("An error occurred: " . $e->getMessage());
     }
 
@@ -153,6 +140,7 @@ if (isset($_GET['delete'])) {
     try {
         $pdo->beginTransaction();
 
+        // Fetch the quantity sold and stock ID
         $stmt = $pdo->prepare("SELECT quantity_sold, stock_id FROM sales WHERE id=?");
         $stmt->execute([$_GET['delete']]);
         $sale = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -162,22 +150,24 @@ if (isset($_GET['delete'])) {
             $stmt = $pdo->prepare("UPDATE sales SET flag = 'inactive' WHERE id=?");
             $stmt->execute([$_GET['delete']]);
 
-            // Increase the stock quantity
+            // Increase the stock quantity (since the sale is no longer active)
             $stmt = $pdo->prepare("UPDATE stocks SET stock_quantity = stock_quantity + ? WHERE id=?");
             $stmt->execute([$sale['quantity_sold'], $sale['stock_id']]);
 
-            // Restore FIFO items
+            // ===== FIFO IMPLEMENTATION =====
             $stmt = $pdo->prepare("UPDATE fifo_queue1 SET is_processed = 0 
                                  WHERE part_id = ? 
                                  AND is_processed = 1
                                  ORDER BY id DESC 
                                  LIMIT ?");
             $stmt->execute([$sale['stock_id'], $sale['quantity_sold']]);
+            // ===== END FIFO =====
         }
 
         $pdo->commit();
     } catch (Exception $e) {
         $pdo->rollBack();
+        // Handle the error (log it, show a message, etc.)
         die("An error occurred: " . $e->getMessage());
     }
 
@@ -216,6 +206,7 @@ if (isset($_GET['edit'])) {
                     <option value="" disabled selected>Select a Part Number</option>
                     <?php foreach ($stocks as $stock): ?>
                         <option value="<?= $stock['id'] ?>" <?= isset($edit) && $edit['stock_id'] == $stock['id'] ? 'selected' : '' ?>>
+                            <!-- <?= htmlspecialchars($stock['part_number'] . ' (Available: ' . $stock['stock_quantity'] . ')') ?> -->
                             <?= htmlspecialchars($stock['part_number']) ?>
                         </option>
                     <?php endforeach; ?>
@@ -227,8 +218,7 @@ if (isset($_GET['edit'])) {
             </div>
             <div class="mb-3">
                 <label class="form-label"><strong>Unit Cost</strong></label>
-                <input type="text" class="form-control" value="<?= isset($edit) ? $edit['total_price'] / $edit['quantity_sold'] : '' ?>" readonly>
-                <small class="text-muted">Automatically calculated from FIFO</small>
+                <input type="text" name="total_price" class="form-control" placeholder="Enter Unit Cost" required value="<?= $edit['total_price'] ?? '' ?>">
             </div>
             <div class="mb-3">
                 <label class="form-label"><strong>Selling Price</strong></label>
@@ -245,7 +235,7 @@ if (isset($_GET['edit'])) {
         <p>You do not have permission to create or edit sales.</p>
     <?php endif; ?>
 </div>
-<table class="table-striped table table-bordered">
+<table class=" table-striped table table-bordered">
     <thead class="table-dark">
         <tr>
             <th>Customer</th>
@@ -267,7 +257,7 @@ if (isset($_GET['edit'])) {
                     <td><?= htmlspecialchars($sale['part_number']) ?></td>
                     <td><?= htmlspecialchars($sale['description']) ?></td>
                     <td><?= htmlspecialchars($sale['quantity_sold']) ?></td>
-                    <td><?= number_format($sale['total_price'] / $sale['quantity_sold'], 2) ?></td>
+                    <td><?= htmlspecialchars($sale['total_price']) ?></td>
                     <td><?= htmlspecialchars($sale['selling_price']) ?></td>
                     <td><?= htmlspecialchars($sale['sale_date']) ?></td>
                     <td><?= htmlspecialchars($sale['location_code']) ?></td>
@@ -283,7 +273,7 @@ if (isset($_GET['edit'])) {
             <?php endforeach; ?>
         <?php else: ?>
             <tr>
-                <td colspan="9" class="text-center">No sales records found.</td>
+                <td colspan="7" class="text-center">No sales records found.</td>
             </tr>
         <?php endif; ?>
     </tbody>

@@ -64,7 +64,7 @@ if (isset($_GET['invoice_item_id'])) {
                         <th>Part Number</th>
                         <th>Description</th>
                         <th>Quantity</th>
-                        <th>Selling Price</th>
+                        <th>Price</th>
                         <th>Total</th>
                     </tr>
                 </thead>
