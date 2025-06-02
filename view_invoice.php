@@ -79,15 +79,18 @@ if (isset($_GET['invoice_item_id'])) {
                         <td><?php echo $item['part_number']; ?></td>
                         <td><?php echo $item['description']; ?></td>
                         <td><?php echo $item['quantity']; ?></td>
-                        <td><?php echo $item['unit_price']; ?></td>
-                        <td><?php echo $total_price; ?></td>
+                        <!-- <td><?php echo $item['unit_price']; ?></td> -->
+                        <td><?php echo number_format($item['unit_price'], 2); ?></td>
+                        <!-- <td><?php echo $total_price; ?></td> -->
+                        <td><?php echo number_format($total_price, 2); ?></td>
                     </tr>
                     <?php } ?>
                 </tbody>
             </table>
 
             <!-- Grand Total -->
-            <h4>Grand Total: <?php echo $grand_total; ?></h4>
+            <!-- <h4>Grand Total: <?php echo $grand_total; ?></h4> -->
+            <h4>Grand Total: <?php echo number_format($grand_total, 2); ?></h4>
         </div>
 
     </div>
