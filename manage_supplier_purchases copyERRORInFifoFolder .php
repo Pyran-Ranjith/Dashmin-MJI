@@ -1,4 +1,5 @@
 <?php
+// manage_supplier_purchases.php .....
 session_start();
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
@@ -8,8 +9,8 @@ if (!isset($_SESSION['user_id'])) {
 $crud_permissions = $_SESSION['crud_permissions'];
 
 ob_start();
-include('../db1.php');
-include('../header.php');
+include('db.php');
+include('header.php');
 
 // Initialize empty variables to hold form data for pre-fill when editing
 $supplier_id = '';
@@ -18,29 +19,6 @@ $quantity = '';
 $cost = '';
 $purchase_date = '';
 $id = '';
-$search_term = $_GET['search_term'] ?? '';
-
-// Fetch parts based on search term
-try {
-    $parts_query = "SELECT DISTINCT stocks.id as id, stocks.part_number as part_number FROM stocks
-    -- LEFT JOIN stocks ON fifo_queue1.part_id = stocks.id
-    ";
-    $params = [];
-    
-    if (!empty($search_term)) {
-        $parts_query .= " AND part_number LIKE ?";
-        $params[] = '%' . $search_term . '%';
-    }
-    
-    $parts_query .= " ORDER BY part_number";
-    // $parts_query .= " ORDER BY part_id";
-    
-    $stmt = $conn->prepare($parts_query);
-    $stmt->execute($params);
-    $parts = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    $error = "Error fetching parts: " . $e->getMessage();
-}
 
 // Initialize $purchases as an empty array
 $purchases = [];
@@ -139,12 +117,15 @@ if (isset($_GET['delete'])) {
 
 // Fetch supplier purchases, parts (stocks), and suppliers (only active records)
 try {
+    // Modified query to use LEFT JOIN for racks and ensure all active purchases appear
     $purchases_result = $conn->query("
-        SELECT supplier_purchases.*, suppliers.supplier_name, stocks.part_number 
-        FROM supplier_purchases 
-        JOIN suppliers ON supplier_purchases.supplier_id = suppliers.id 
-        JOIN stocks ON supplier_purchases.part_id = stocks.id
-        WHERE supplier_purchases.flag = 'active'
+        SELECT sp.*, s.supplier_name, st.part_number, 
+               IFNULL(r.location_code, 'N/A') AS location_code 
+        FROM supplier_purchases sp
+        JOIN suppliers s ON sp.supplier_id = s.id 
+        JOIN stocks st ON sp.part_id = st.id
+        LEFT JOIN racks r ON st.rack_id = r.id
+        WHERE sp.flag = 'active'
     ");
     $purchases = $purchases_result->fetchAll(PDO::FETCH_ASSOC);
 
@@ -196,11 +177,11 @@ if (isset($_GET['edit'])) {
                     $id = intval($_GET['view']);
                     try {
                         $stmt = $conn->prepare("
-                            SELECT supplier_purchases.*, suppliers.supplier_name, stocks.part_number 
-                            FROM supplier_purchases 
-                            JOIN suppliers ON supplier_purchases.supplier_id = suppliers.id 
-                            JOIN stocks ON supplier_purchases.part_id = stocks.id 
-                            WHERE supplier_purchases.id=? AND supplier_purchases.flag = 'active'
+                            SELECT sp.*, s.supplier_name, st.part_number 
+                            FROM supplier_purchases sp
+                            JOIN suppliers s ON sp.supplier_id = s.id 
+                            JOIN stocks st ON sp.part_id = st.id 
+                            WHERE sp.id=? AND sp.flag = 'active'
                         ");
                         $stmt->execute([$id]);
                         $purchase = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -216,12 +197,12 @@ if (isset($_GET['edit'])) {
                                     <p><strong>Supplier:</strong> <?php echo htmlspecialchars($purchase['supplier_name']); ?></p>
                                     <p><strong>Part Number:</strong> <?php echo htmlspecialchars($purchase['part_number']); ?></p>
                                     <p><strong>Quantity:</strong> <?php echo htmlspecialchars($purchase['quantity']); ?></p>
-                                    <p><strong>Cost:</strong> <?php echo htmlspecialchars($purchase['cost']); ?></p>
+                                    <p><strong>Unit Cost:</strong> <?php echo htmlspecialchars($purchase['cost']); ?></p>
                                     <p><strong>Purchase Date:</strong> <?php echo htmlspecialchars($purchase['purchase_date']); ?></p>
                                     <a href="manage_supplier_purchases.php" class="btn btn-secondary">Back to List</a>
                                 </div>
                             </div>
-                        <?php endif;
+                    <?php endif;
                     } catch (PDOException $e) {
                         die("An error occurred: " . $e->getMessage());
                     }
@@ -230,7 +211,7 @@ if (isset($_GET['edit'])) {
                     <!-- Form to add/update supplier purchase -->
                     <?php if ($crud_permissions['flag_create'] === 'active' || $crud_permissions['flag_update'] === 'active'): ?>
                         <form method="POST" action="manage_supplier_purchases.php">
-                            <h3>Supplier Purchases1</h3>
+                            <h3>Supplier Purchases</h3>
                             <div class="card">
                                 <div class="card-header">
                                     Supplier Purchases (Add/Update)
@@ -240,7 +221,7 @@ if (isset($_GET['edit'])) {
                             <div class="form-group">
                                 <label><strong>Supplier</strong></label>
                                 <select class="form-control" name="supplier_id" required>
-                                    <option value="" disabled selected>Select a Supplier1</option>
+                                    <option value="" disabled selected>Select a Supplier</option>
                                     <?php foreach ($suppliers as $supplier): ?>
                                         <option value="<?php echo $supplier['id']; ?>" <?php if ($supplier['id'] == $supplier_id) echo 'selected'; ?>>
                                             <?php echo htmlspecialchars($supplier['supplier_name']); ?>
@@ -249,9 +230,9 @@ if (isset($_GET['edit'])) {
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label><strong>Part</strong></label>
+                                <label><strong>Part Number</strong></label>
                                 <select class="form-control" name="part_id" required>
-                                    <option value="" disabled selected>Select a Part</option>
+                                    <option value="" disabled selected>Select a Part Number</option>
                                     <?php foreach ($parts as $part): ?>
                                         <option value="<?php echo $part['id']; ?>" <?php if ($part['id'] == $part_id) echo 'selected'; ?>>
                                             <?php echo htmlspecialchars($part['part_number']); ?>
@@ -264,8 +245,8 @@ if (isset($_GET['edit'])) {
                                 <input type="number" class="form-control" name="quantity" placeholder="Enter quantity" value="<?php echo $quantity; ?>" required>
                             </div>
                             <div class="form-group">
-                                <label><strong>Cost</strong></label>
-                                <input type="number" class="form-control" name="cost" placeholder="Enter cost" value="<?php echo $cost; ?>" step="0.01" required>
+                                <label><strong>Unit Cost</strong></label>
+                                <input type="number" class="form-control" name="cost" placeholder="Enter unit cost" value="<?php echo $cost; ?>" step="0.01" required>
                             </div>
                             <div class="form-group">
                                 <label><strong>Purchase Date</strong></label>
@@ -280,14 +261,16 @@ if (isset($_GET['edit'])) {
                 <hr>
 
                 <!-- Supplier Purchase List -->
-                <table class="table">
-                    <thead>
+                <table class=" table-striped table table-bordered">
+                    <thead class="table-dark">
                         <tr>
+                            <th>ID</th>
                             <th>Supplier</th>
                             <th>Part Number</th>
                             <th>Quantity</th>
-                            <th>Cost</th>
+                            <th>Unit Cost</th>
                             <th>Purchase Date</th>
+                            <th>Rack Location</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -295,11 +278,13 @@ if (isset($_GET['edit'])) {
                         <?php if (!empty($purchases)): ?>
                             <?php foreach ($purchases as $purchase): ?>
                                 <tr>
+                                    <td><?php echo htmlspecialchars($purchase['id']); ?></td>
                                     <td><?php echo htmlspecialchars($purchase['supplier_name']); ?></td>
                                     <td><?php echo htmlspecialchars($purchase['part_number']); ?></td>
                                     <td><?php echo htmlspecialchars($purchase['quantity']); ?></td>
                                     <td><?php echo htmlspecialchars($purchase['cost']); ?></td>
                                     <td><?php echo htmlspecialchars($purchase['purchase_date']); ?></td>
+                                    <td><?php echo htmlspecialchars($purchase['location_code']); ?></td>
                                     <td>
                                         <a href="manage_supplier_purchases.php?view=<?php echo $purchase['id']; ?>" class="btn btn-info btn-sm">View</a>
                                         <?php if ($crud_permissions['flag_update'] === 'active'): ?>
@@ -313,7 +298,7 @@ if (isset($_GET['edit'])) {
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="6" class="text-center">No supplier purchases found.</td>
+                                <td colspan="8" class="text-center">No supplier purchases found.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>

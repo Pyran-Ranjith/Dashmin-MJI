@@ -20,12 +20,12 @@ if ($prj_folder_extend_ == 'C:\xampp\htdocs\JYI_DEV_6_DashMin\Dashmin_MJI_Remote
     $prj_id_ = '[Nmc-Remote]';
     $prj_icon_id_ = '[Dev-V-JYI]';
     $fav_icon = 'nmc-II.ico';
-    $title = 'Nmc_Remote';
+    $title = 'Nmc_Semulate';
     $carousel_inner_img_height = '50';
     $servername = "localhost";
     $username = "root";
     $password = "";
-    $dbname = $database_name;
+    $dbname = 'mji_nmc1';
     $company_name = 'Namarathna';
 } elseif ($prj_folder_extend_ == 'C:\xampp\htdocs\JYI_DEV_6_DashMin\Dashmin_MJI_Remote_2') {
     /* MAHI JAYAWARDANA INSTITUTE(Dashmin_MJI_Remote_2) */

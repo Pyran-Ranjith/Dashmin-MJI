@@ -6,19 +6,10 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-include('db.php');
-
-// Handle success messages
-if (isset($_GET['success'])) {
-    echo "<script>
-        alert('".($_GET['success'] == 'create' ? 
-             'Purchase successfully created!' : 
-             'Purchase successfully updated!')."');
-    </script>";
-}
 $crud_permissions = $_SESSION['crud_permissions'];
 
 ob_start();
+include('db.php');
 include('header.php');
 
 // Initialize empty variables to hold form data for pre-fill when editing
@@ -60,7 +51,7 @@ if (isset($_POST['save_purchase'])) {
 
             // Adjust the stock quantity
             if ($old_part_id != $part_id) {
-                // Restore the old stock quantity
+                // Resftore the old stock quantity
                 $stmt = $conn->prepare("UPDATE stocks SET stock_quantity = stock_quantity - ? WHERE id=?");
                 $stmt->execute([$old_quantity, $old_part_id]);
 
@@ -72,9 +63,6 @@ if (isset($_POST['save_purchase'])) {
                 $stmt = $conn->prepare("UPDATE stocks SET stock_quantity = stock_quantity + ? - ? WHERE id=?");
                 $stmt->execute([$quantity, $old_quantity, $part_id]);
             }
-            
-            header('Location: manage_supplier_purchases.php?success=update');
-            exit;
         } else {
             // Create new supplier purchase entry
             $stmt = $conn->prepare("INSERT INTO supplier_purchases (supplier_id, part_id, quantity, cost, purchase_date, flag) VALUES (?, ?, ?, ?, ?, 'active')");
@@ -84,22 +72,23 @@ if (isset($_POST['save_purchase'])) {
             $stmt = $conn->prepare("UPDATE stocks SET stock_quantity = stock_quantity + ? WHERE id=?");
             $stmt->execute([$quantity, $part_id]);
 
-            // FIFO IMPLEMENTATION
+            // ===== FIFO IMPLEMENTATION =====
             $stmt = $conn->prepare("INSERT INTO fifo_queue1 
                                   (part_id, supplier_id, quantity, cost, purchase_date, item_data) 
                                   VALUES (?, ?, ?, ?, ?, ?)");
             $item_data = "Purchase ID: $supplier_id | Part: $part_id | Qty: $quantity | Cost: $cost";
             $stmt->execute([$part_id, $supplier_id, $quantity, $cost, $purchase_date, $item_data]);
-            
-            header('Location: manage_supplier_purchases.php?success=create');
-            exit;
+            // ===== END FIFO =====
         }
 
         $conn->commit();
     } catch (Exception $e) {
         $conn->rollBack();
-        echo "<script>alert('An error occurred: " . addslashes($e->getMessage()) . "');</script>";
+        die("An error occurred: " . $e->getMessage());
     }
+
+    header('Location: manage_supplier_purchases.php');
+    exit;
 }
 
 // Handle "delete" (set flag to inactive)
@@ -123,17 +112,21 @@ if (isset($_GET['delete'])) {
             $stmt = $conn->prepare("UPDATE stocks SET stock_quantity = stock_quantity - ? WHERE id=?");
             $stmt->execute([$purchase['quantity'], $purchase['part_id']]);
 
-            // FIFO IMPLEMENTATION
-            $stmt = $conn->prepare("UPDATE fifo_queue1 SET is_processed = 1 WHERE supplier_id = ?");
+            // ===== FIFO IMPLEMENTATION =====
+            $stmt = $conn->prepare("UPDATE fifo_queue1 SET is_processed = 1 
+                                  WHERE supplier_id = ?");
             $stmt->execute([$id]);
+            // ===== END FIFO =====
         }
 
         $conn->commit();
-        echo "<script>alert('Purchase successfully deleted!');</script>";
     } catch (Exception $e) {
         $conn->rollBack();
-        echo "<script>alert('An error occurred: " . addslashes($e->getMessage()) . "');</script>";
+        die("An error occurred: " . $e->getMessage());
     }
+
+    header('Location: manage_supplier_purchases.php');
+    exit;
 }
 
 // Fetch supplier purchases, parts (stocks), and suppliers (only active records)
@@ -155,7 +148,7 @@ try {
     $parts_result = $conn->query("SELECT * FROM stocks WHERE flag = 'active'");
     $parts = $parts_result->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    echo "<script>alert('Database error: " . addslashes($e->getMessage()) . "');</script>";
+    die("An error occurred: " . $e->getMessage());
 }
 
 // Pre-fill form if editing a purchase
@@ -174,7 +167,7 @@ if (isset($_GET['edit'])) {
             $purchase_date = $purchase['purchase_date'];
         }
     } catch (PDOException $e) {
-        echo "<script>alert('Error loading purchase: " . addslashes($e->getMessage()) . "');</script>";
+        die("An error occurred: " . $e->getMessage());
     }
 }
 ?>
@@ -197,12 +190,10 @@ if (isset($_GET['edit'])) {
                     $id = intval($_GET['view']);
                     try {
                         $stmt = $conn->prepare("
-                            SELECT supplier_purchases.*, suppliers.supplier_name, stocks.part_number, 
-                            stocks.rack_id, racks.location_code AS location_code
+                            SELECT supplier_purchases.*, suppliers.supplier_name, stocks.part_number 
                             FROM supplier_purchases 
                             JOIN suppliers ON supplier_purchases.supplier_id = suppliers.id 
                             JOIN stocks ON supplier_purchases.part_id = stocks.id 
-                            LEFT JOIN racks ON stocks.rack_id = racks.id
                             WHERE supplier_purchases.id=? AND supplier_purchases.flag = 'active'
                         ");
                         $stmt->execute([$id]);
@@ -221,19 +212,18 @@ if (isset($_GET['edit'])) {
                                     <p><strong>Quantity:</strong> <?php echo htmlspecialchars($purchase['quantity']); ?></p>
                                     <p><strong>Unit Cost:</strong> <?php echo htmlspecialchars($purchase['cost']); ?></p>
                                     <p><strong>Purchase Date:</strong> <?php echo htmlspecialchars($purchase['purchase_date']); ?></p>
-                                    <p><strong>Racks Possition:</strong> <?php echo htmlspecialchars($purchase['location_code']); ?></p>
                                     <a href="manage_supplier_purchases.php" class="btn btn-secondary">Back to List</a>
                                 </div>
                             </div>
                     <?php endif;
                     } catch (PDOException $e) {
-                        echo "<script>alert('Error viewing purchase: " . addslashes($e->getMessage()) . "');</script>";
+                        die("An error occurred: " . $e->getMessage());
                     }
                     ?>
                 <?php else: ?>
                     <!-- Form to add/update supplier purchase -->
                     <?php if ($crud_permissions['flag_create'] === 'active' || $crud_permissions['flag_update'] === 'active'): ?>
-                        <form method="POST" action="manage_supplier_purchases.php" onsubmit="return confirm('Are you sure you want to save this purchase?');">
+                        <form method="POST" action="manage_supplier_purchases.php">
                             <h3>Supplier Purchases</h3>
                             <div class="card">
                                 <div class="card-header">
@@ -292,7 +282,7 @@ if (isset($_GET['edit'])) {
                             <th>Quantity</th>
                             <th>Unit Cost</th>
                             <th>Purchase Date</th>
-                            <th>Rack Position</th>
+                            <th>Rack Possition</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -319,7 +309,7 @@ if (isset($_GET['edit'])) {
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="7" class="text-center">No supplier purchases found.</td>
+                                <td colspan="6" class="text-center">No supplier purchases found.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
