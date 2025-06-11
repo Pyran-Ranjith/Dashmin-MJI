@@ -31,7 +31,8 @@ $table_1 = "sfl_batch_transfer_all";
 $table_2 = "src_file_list_folder";
 
 /* This entry should be included in ./batch_copy_files_src_to_destination_folder.php */
-$destination_folder = 'C:\xampp\htdocs\JYI_DEV_6_DashMin\nmc\/';
+// $destination_folder = 'C:\xampp\htdocs\JYI_DEV_6_DashMin\nmc\/';
+$destination_folder = 'C:\xampp\htdocs\JYI_DEV_6_DashMin\demo\/';
 
 $parm_string = "./batch_copy_files_src_to_destination_folder.php"
     . "?parm=parm"

@@ -56,8 +56,10 @@ if ($prj_folder_extend_ == 'C:\xampp\htdocs\JYI_DEV_6_DashMin\Dashmin_MJI_Remote
         // $company_name = 'Jayani Yashmila';
         $company_name = 'Namarathna';
     } elseif ($prj_folder_extend_ == 'C:\xampp\htdocs\JYI_DEV_6_DashMin\Dashmin-MJI') {
+    /* Local (Dashmin-MJI)--------CURRENT DEVELOPMENT--------------------------------- */
+    echo '-------------------------------------------------------------' .$prj_folder_extend_;
         /* MAHI JAYAWARDANA INSTITUTE(Development) */
-        $prj_id_ = '[Dashmin-MJI]';
+        $prj_id_ = '[SPMS-Dashmin-MJI]';
         $prj_icon_id_ = '[Dev-V-JYI]';
         // $fav_icon = 'nmc-I.ico';
         $fav_icon = 'nmc.jpg';
@@ -125,17 +127,37 @@ if ($prj_folder_extend_ == 'C:\xampp\htdocs\JYI_DEV_6_DashMin\Dashmin_MJI_Remote
     $dbname = "jyi";
     // $company_name = 'Jayani Yashmila';
     $company_name = 'අකුර';
-} else {
-    $prj_id_ = '[Nmc-Remote]';
+
+// } else {
+    /* Remote (Demo)--------CURRENT DEVELOPMENT--------------------------------- */
+    /* $prj_folder_extend_ : /home/vol18_2/infinityfree.com/if0_39184750/htdocs/Demo */
+    /* Disply: echo '-------------------------------------------------------------' .$prj_folder_extend_; */
+    } elseif ($prj_folder_extend_ == '/home/vol18_2/infinityfree.com/if0_39184750/htdocs/Demo') {
+   $prj_id_ = 'SPMS-Demo-Remote';
     $prj_icon_id_ = '[Dev-V-JYI]';
     $fav_icon = 'nmc-II.ico';
     $title = 'Nmc_Remote';
     $carousel_inner_img_height = '50';
     // $prj_icon_id_ = '[Remote-I-NSPMS]';
     // $fav_icon = 'nmc-remote.ico';
-    $servername = "sql211.infinityfree.com";
-    $username = "if0_37657216";
+    $servername = "sql305.infinityfree.com";
+    $username = "if0_39184750";
     $password = "AaS499404";
-    $dbname = "if0_37657216_2";
+    $dbname = "if0_39184750_spms_demo";
     $company_name = 'Namarathna';
-}
+    }
+    /* Remote (NMC)----------------------------------------------- */
+// } else {
+//     $prj_id_ = '[Nmc-Remote]';
+//     $prj_icon_id_ = '[Dev-V-JYI]';
+//     $fav_icon = 'nmc-II.ico';
+//     $title = 'Nmc_Remote';
+//     $carousel_inner_img_height = '50';
+//     // $prj_icon_id_ = '[Remote-I-NSPMS]';
+//     // $fav_icon = 'nmc-remote.ico';
+//     $servername = "sql211.infinityfree.com";
+//     $username = "if0_37657216";
+//     $password = "AaS499404";
+//     $dbname = "if0_37657216_2";
+//     $company_name = 'Namarathna';
+    // }

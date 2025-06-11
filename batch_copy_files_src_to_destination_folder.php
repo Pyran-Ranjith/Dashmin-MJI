@@ -54,7 +54,8 @@ if (!isset($_SESSION['user_id'])) {
     $source_folder = 'C:\xampp\htdocs\JYI_DEV_6_DashMin\Dashmin-MJI\/';
 
     // $destination_folder = 'C:\xampp\htdocs\NSPMS_DEV_2\NSPMS\/';
-    $destination_folder = 'C:\xampp\htdocs\JYI_DEV_6_DashMin\Nmc\/';
+    // $destination_folder = 'C:\xampp\htdocs\JYI_DEV_6_DashMin\Nmc\/'; /* Namarathne */
+    $destination_folder = 'C:\xampp\htdocs\JYI_DEV_6_DashMin\Demo\/'; /* Demo */
     $log_file = $curr_pgm_name . '_log.txt'; // Log file path
     $table_1 = 'sfl_batch_transfer_remote_nonroot'; // Source table
     // $table_1 = 'sfl_batch_transfer_remote_nonroot'; // Source table
